@@ -1,5 +1,4 @@
 #INCLUDE "PROTHEUS.CH"
-
 /*{Protheus.doc} MvSRCtoSRD
 
 Cria registros na SRD baseado nos registros da SRC

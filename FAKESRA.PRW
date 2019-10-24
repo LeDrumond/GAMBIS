@@ -1,5 +1,4 @@
 #INCLUDE "PROTHEUS.CH"
-
 /*{Protheus.doc} FakeSRA
 
 Cria funcionarios novos baseado em um modelo pré-existente.

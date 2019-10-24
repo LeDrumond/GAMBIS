@@ -1,5 +1,4 @@
 #INCLUDE "PROTHEUS.CH"
-
 /*{Protheus.doc} LimpaSRF
 
 Deixa apenas o último período aquisitivo na SRF, excluindo todos os demais.

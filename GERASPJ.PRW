@@ -1,5 +1,4 @@
 #INCLUDE "PROTHEUS.CH"
-
 /*{Protheus.doc} GERASPJ
 
 Cria registro na SPJ para todos os turnos definidos nas váriavies de acordo com uma tabela de horário pré-definida

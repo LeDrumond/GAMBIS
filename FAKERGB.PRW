@@ -1,5 +1,4 @@
 #INCLUDE "PROTHEUS.CH"
-
 /*{Protheus.doc} FakeRGB
 
 Esta função irá criar um lançamento na RGB para cada funcionário encontrado de acordo com o filtro definido nas variáveis abaixo.

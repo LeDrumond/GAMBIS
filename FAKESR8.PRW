@@ -1,5 +1,4 @@
 #INCLUDE "PROTHEUS.CH"
-
 /*{Protheus.doc} FakeSR8
 
 Esta função irá replicar um afastamento previamente cadastrado para um funcionário para os demais funcionários da base, de acordo com o filtro montado.
