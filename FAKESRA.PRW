@@ -1,7 +1,7 @@
 #INCLUDE "PROTHEUS.CH"
 /*{Protheus.doc} FakeSRA
 
-Cria funcionarios novos baseado em um modelo prÈ-existente.
+Cria funcionarios novos baseado em um modelo pr√©-existente.
 @author Leandro Drumond
 */
 User Function FakeSRA()
@@ -12,14 +12,17 @@ Local nX		:= 0
 Local nY		:= 0
 Local nZ		:= 0
 Local cFunc		:= "00"
+Local cPdFer 		:= ""
 Local lCriaSRD	:= .F.					//Se deve criar registros na SRD para os fakes
-Local cAnoSRD	:= "2011"				//Ano para criaÁ„o dos registros na SRD
-Local aFakes	:= {10000, 10000, 10000, 10000}		//N˙mero de funcion·rios que ser„o criados por filial
-Local aFiliais	:= {"D MG 01 ", "D RJ 01 ", "M PR 01 ", "M SP 01 "}		//Filiais onde ser„o criados os fakes
-Local cMatAux	:= "000001"				//MatrÌcula a partir da qual ser„o gerados os fakes
-Local cMatFake	:= "200000"				//MatrÌcula inicial para os fakes
-Local cIndice	:= "00001"				//CÛdigo incluÌdo na frente do nome (RA_NOME)
-Local cProcesso	:= "00103"				//Processo dos funcion·rios fakes
+Local lCriaSRF  := .F. 					//Se deve criar SRF
+Local dDataLim  := dDataBase 				//Data limite para cria√ß√£o da SRF
+Local cAnoSRD	:= "2011"				//Ano para cria√ß√£o dos registros na SRD
+Local aFakes	:= {10000, 10000, 10000, 10000}		//N√∫mero de funcion√°rios que ser√£o criados por filial
+Local aFiliais	:= {"D MG 01 ", "D RJ 01 ", "M PR 01 ", "M SP 01 "}		//Filiais onde ser√£o criados os fakes
+Local cMatAux	:= "000001"				//Matr√≠cula a partir da qual ser√£o gerados os fakes
+Local cMatFake	:= "200000"				//Matr√≠cula inicial para os fakes
+Local cIndice	:= "00001"				//C√≥digo inclu√≠do na frente do nome (RA_NOME)
+Local cProcesso	:= "00103"				//Processo dos funcion√°rios fakes
 
 CursorWait()
 
@@ -40,7 +43,7 @@ For nX := 1 to Len(aFakes)
 	For nZ := 1 to aFakes[nX]
 
 		While .T.
-			If SRA->(DbSeek(aFiliais[nX] + cMatFake)) //Se a matrÌcula j· existir, soma 1 e continua buscado atÈ naı encontrar.
+			If SRA->(DbSeek(aFiliais[nX] + cMatFake)) //Se a matr√≠cula j√° existir, soma 1 e continua buscado at√© na√µ encontrar.
 				cMatFake := Soma1(cMatFake)
 			Else
 				Exit
@@ -61,8 +64,8 @@ For nX := 1 to Len(aFakes)
 		Next nY
 		
 		SRA->RA_MAT 	:= cMatFake
-		SRA->RA_CIC 	:= GeraCPFVld()	//Gera um n˙mero de CPF v·lido
-		SRA->RA_PIS 	:= GeraPISVld()	//Gera um n˙mero de PIS v·lido
+		SRA->RA_CIC 	:= GeraCPFVld()	//Gera um n√∫mero de CPF v√°lido
+		SRA->RA_PIS 	:= GeraPISVld()	//Gera um n√∫mero de PIS v√°lido
 		SRA->RA_NOME 	:= "TESTE PERFORMANCE - " + cIndice
 		SRA->RA_CATFUNC := "M"
 		SRA->RA_PROCES 	:= cProcesso
@@ -72,6 +75,34 @@ For nX := 1 to Len(aFakes)
 		
 		If lCriaSRD
 			CriaSRDFake((cAliasQry)->RA_FILIAL, (cAliasQry)->RA_MAT,cAnoSRD,cMatFake)
+		EndIf
+
+		If lCriaSRF
+			aPerFerias	:= {}
+			Calc_Fer(@aPerFerias,dDataLim,,,,,,.T.)
+			cPdFer := fGetCodFOl("0072",.F.,xFilial("SRV",(cAliasQry)->RA_FILIAL))
+
+			For nY := 1 to Len(aPerFerias)
+				If !SRF->( DbSeek( (cAliasQry)->RA_FILIAL+(cAliasQry)->RA_MAT + cPdFer + DtoS(aPerFerias[nY][01]) ) )
+					RecLock( "SRF" , .T. )
+					SRF->RF_FILIAL	:= (cAliasQry)->RA_FILIAL
+					SRF->RF_MAT	:= (cAliasQry)->RA_MAT
+					SRF->RF_PD	:= cPdFer
+					SRF->RF_DIASDIR := 30
+					SRF->RF_STATUS	:= "1"
+					SRF->RF_DATABAS := aPerFerias[nY][01]
+					SRF->RF_DATAFIM := aPerFerias[nY][02]
+					SRF->RF_DFERVAT := aPerFerias[nY][03]
+					SRF->RF_DFERAAT := aPerFerias[nY][04]
+					SRF->RF_DFERANT := aPerFerias[nY][14]
+					SRF->RF_DVENPEN := aPerFerias[nY][11]
+					SRF->RF_IVENPEN := aPerFerias[nY][12]
+					SRF->RF_FVENPEN := aPerFerias[nY][13]
+					SRF->RF_DFALVAT := aPerFerias[nY][15]
+					SRF->RF_DFALAAT := aPerFerias[nY][16]
+					SRF->( MsUnLock() )
+				EndIf
+			Next nY
 		EndIf
 		
 		cIndice := Soma1(cIndice)
@@ -91,7 +122,7 @@ Return Nil
 
 /*{Protheus.doc} GeraCPFVld
 
-Gera um CPF v·lido
+Gera um CPF v√°lido
 
 @author Leandro Drumond
 */
@@ -152,7 +183,7 @@ Return cCpf
 
 /*{Protheus.doc} GeraPISVld
 
-Gera um PIS v·lido
+Gera um PIS v√°lido
 
 @author Leandro Drumond
 */
@@ -184,7 +215,7 @@ Return cPIS
 
 /*{Protheus.doc} CriaSRDFake
 
-Duplica os registros da SRD do funcion·rio original para o fake
+Duplica os registros da SRD do funcion√°rio original para o fake
 
 @author Leandro Drumond
 */
@@ -193,8 +224,8 @@ Static Function CriaSRDFake(cFilAux,cMatAux,cAnoSRD,cNewMat)
 Local aArea 		:= GetArea()
 Local aSRDFields	:= {}
 Local cAliasSRD		:= GetNextAlias()
-Local cDataIni		:= cAnoSrd + "01"		//PerÌodo inicial para a geraÁ„o dos registros
-Local cDataFim		:= cAnoSrd + "13"		//PerÌodo final para a geraÁ„o dos registros
+Local cDataIni		:= cAnoSrd + "01"		//Per√≠odo inicial para a gera√ß√£o dos registros
+Local cDataFim		:= cAnoSrd + "13"		//Per√≠odo final para a gera√ß√£o dos registros
 Local nX			:= 0
 
 DbSelectArea("SRD")
