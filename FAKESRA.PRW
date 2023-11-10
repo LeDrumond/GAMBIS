@@ -7,24 +7,29 @@ Cria funcionarios novos baseado em um modelo pré-existente.
 User Function FakeSRA()
 Local aArea  	:= GetArea()
 Local aSRAFields:= {}
+Local aPerFerias:= {}
 Local cAliasQry := GetNextAlias()
 Local nX		:= 0
 Local nY		:= 0
 Local nZ		:= 0
-Local cFunc		:= "00"
-Local cPdFer 		:= ""
 Local lCriaSRD	:= .F.					//Se deve criar registros na SRD para os fakes
-Local lCriaSRF  := .F. 					//Se deve criar SRF
-Local dDataLim  := dDataBase 				//Data limite para criação da SRF
-Local cAnoSRD	:= "2011"				//Ano para criação dos registros na SRD
-Local aFakes	:= {10000, 10000, 10000, 10000}		//Número de funcionários que serão criados por filial
+Local lCriaSRF  := .T. 					//Se deve criar SRF
+Local lCriaMnemo:= .T.
+Local dDataLim  := CtoD("31/08/2023") 	//Data limite para criação da SRF
+Local cAnoSRD	:= "2023"				//Ano para criação dos registros na SRD
+Local aFakes	:= {10, 0, 0, 0}		//Número de funcionários que serão criados por filial
 Local aFiliais	:= {"D MG 01 ", "D RJ 01 ", "M PR 01 ", "M SP 01 "}		//Filiais onde serão criados os fakes
-Local cMatAux	:= "000001"				//Matrícula a partir da qual serão gerados os fakes
-Local cMatFake	:= "200000"				//Matrícula inicial para os fakes
-Local cIndice	:= "00001"				//Código incluído na frente do nome (RA_NOME)
-Local cProcesso	:= "00103"				//Processo dos funcionários fakes
+Local cMatAux	:= "888945"				//Matrícula a partir da qual serão gerados os fakes
+Local cMatFake	:= "943002"				//Matrícula inicial para os fakes
+Local cIndice	:= "1001"				//Código incluído na frente do nome (RA_NOME)
+Local cProcesso	:= "09001"				//Processo dos funcionários fakes
 
 CursorWait()
+
+RpcSetType(3)
+RpcSetEnv("T1", "D MG 01",,,"GPE")
+
+OpenProfile()
 
 DbSelectArea("SRA")
 DbSetOrder(1)
@@ -39,7 +44,6 @@ BeginSql alias cAliasQry
 EndSql
 
 For nX := 1 to Len(aFakes)
-	cMatFake := "200000"
 	For nZ := 1 to aFakes[nX]
 
 		While .T.
@@ -66,10 +70,11 @@ For nX := 1 to Len(aFakes)
 		SRA->RA_MAT 	:= cMatFake
 		SRA->RA_CIC 	:= GeraCPFVld()	//Gera um número de CPF válido
 		SRA->RA_PIS 	:= GeraPISVld()	//Gera um número de PIS válido
-		SRA->RA_NOME 	:= "TESTE PERFORMANCE - " + cIndice
+		SRA->RA_NOME 	:= "FECHAMENTO COM GRID - " + cIndice
 		SRA->RA_CATFUNC := "M"
 		SRA->RA_PROCES 	:= cProcesso
 		SRA->RA_FILIAL 	:= aFiliais[nX]
+		SRA->RA_SALARIO := Randomize(5000,10000)
 		
 		MsUnLock()
 		
@@ -78,16 +83,20 @@ For nX := 1 to Len(aFakes)
 		EndIf
 
 		If lCriaSRF
+			If lCriaMnemo
+				SetMnemonicos(NIL,NIL,.T.)
+				lCriaMnemo := .F.
+			EndIf
 			aPerFerias	:= {}
 			Calc_Fer(@aPerFerias,dDataLim,,,,,,.T.)
-			cPdFer := fGetCodFOl("0072",.F.,xFilial("SRV",(cAliasQry)->RA_FILIAL))
+			cPdFer := fGetCodFOl("0072",.F.,xFilial("SRV",SRA->RA_FILIAL))
 
 			For nY := 1 to Len(aPerFerias)
-				If !SRF->( DbSeek( (cAliasQry)->RA_FILIAL+(cAliasQry)->RA_MAT + cPdFer + DtoS(aPerFerias[nY][01]) ) )
+				If !SRF->( DbSeek( SRA->RA_FILIAL+SRA->RA_MAT + cPdFer + DtoS(aPerFerias[nY][01]) ) )
 					RecLock( "SRF" , .T. )
-					SRF->RF_FILIAL	:= (cAliasQry)->RA_FILIAL
-					SRF->RF_MAT	:= (cAliasQry)->RA_MAT
-					SRF->RF_PD	:= cPdFer
+					SRF->RF_FILIAL	:= SRA->RA_FILIAL
+					SRF->RF_MAT		:= SRA->RA_MAT
+					SRF->RF_PD		:= cPdFer
 					SRF->RF_DIASDIR := 30
 					SRF->RF_STATUS	:= "1"
 					SRF->RF_DATABAS := aPerFerias[nY][01]
@@ -115,6 +124,8 @@ Next nX
 (cAliasQry)->( DbCloseArea() )
 
 CursorArrow()
+
+Alert("Rotina finalizada!")
 
 RestArea(aArea)
 
@@ -259,6 +270,152 @@ While (cAliasSRD)->(!Eof())
 EndDo
 
 (cAliasSRD)->(DbCloseArea())
+
+RestArea(aArea)
+
+Return Nil
+
+//Duplicar SRC
+User Function DupSRC()
+
+Local aArea  	:= GetArea()
+Local aSRCFields:= {}
+Local cAliasQry := GetNextAlias()
+Local nReg		:= 0
+Local nY 		:= 0
+Local cProcesso	:= "01415"				//Processo dos funcionários fakes
+Local cPeriodo  := "198001"
+
+CursorWait()
+
+RpcSetType(3)
+RpcSetEnv("T1", "D MG 02",,,"GPE")
+
+OpenProfile()
+
+DbSelectArea("SRC")
+DbSetOrder(1)
+
+aSRCFields 	:= dbStruct()
+
+BeginSql alias cAliasQry
+	SELECT *
+	FROM 		%table:SRC% SRC
+	WHERE RC_PROCES = %exp:cProcesso%
+	ORDER BY RC_MAT				
+EndSql
+
+While (cAliasQry)->(!Eof())
+
+	cPeriodo  := "198001"
+
+	While cPeriodo < "202301"
+
+		nReg++
+
+		RecLock("SRC",.T.)
+		
+		For nY := 1 to Len(aSRCFields)
+			If ValType(SRC->&(aSRCFields[nY,1])) == "D"
+				SRC->&(aSRCFields[nY,1]) := StoD((cAliasQry)->&(aSRCFields[nY,1]))
+			ElseIf aSRCFields[nY,2] == "M"
+				Loop
+			Else
+				SRC->&(aSRCFields[nY,1]) := (cAliasQry)->&(aSRCFields[nY,1])
+			EndIf
+		Next nY
+
+		SRC->RC_PERIODO	:= cPeriodo
+
+		Conout(".....Fake: " + AllTrim(STR(nReg)))
+
+		MsUnLock()
+		
+		cPeriodo := SomaMesAno( cPeriodo )
+
+	EndDo
+
+	(cAliasQry)->( DbSkip() )
+
+EndDo
+
+(cAliasQry)->( DbCloseArea() )
+
+CursorArrow()
+
+RestArea(aArea)
+
+Return Nil
+
+//Duplicar rgb
+User Function DupRGB()
+
+Local aArea  	:= GetArea()
+Local aRGBFields:= {}
+Local cAliasQry := GetNextAlias()
+Local nReg		:= 0
+Local nY 		:= 0
+Local cProcesso	:= "01415"				//Processo dos funcionários fakes
+Local cPeriodo  := "198001"
+
+CursorWait()
+
+RpcSetType(3)
+RpcSetEnv("T1", "D MG 02",,,"GPE")
+
+OpenProfile()
+
+DbSelectArea("RGB")
+DbSetOrder(1)
+
+aRGBFields 	:= dbStruct()
+
+BeginSql alias cAliasQry
+	SELECT *
+	FROM 		%table:RGB% RGB
+	WHERE RGB_PROCES = %exp:cProcesso%
+	ORDER BY RGB_MAT				
+EndSql
+
+nReg := 0
+
+While (cAliasQry)->(!Eof())
+
+	cPeriodo  := "198001"
+
+	While cPeriodo < "202301"
+
+		nReg++
+
+		RecLock("RGB",.T.)
+		
+		For nY := 1 to Len(aRGBFields)
+			If ValType(RGB->&(aRGBFields[nY,1])) == "D"
+				RGB->&(aRGBFields[nY,1]) := StoD((cAliasQry)->&(aRGBFields[nY,1]))
+			ElseIf aRGBFields[nY,2] == "M"
+				Loop
+			Else
+				RGB->&(aRGBFields[nY,1]) := (cAliasQry)->&(aRGBFields[nY,1])
+			EndIf
+		Next nY
+
+		RGB->RGB_PERIOD	:= cPeriodo
+
+		Conout(".....Fake RGB: " + AllTrim(STR(nReg)))
+
+		MsUnLock()
+		
+		cPeriodo := SomaMesAno( cPeriodo )
+
+	EndDo
+
+	(cAliasQry)->( DbSkip() )
+
+EndDo
+
+(cAliasQry)->( DbCloseArea() )
+
+CursorArrow()
 
 RestArea(aArea)
 
